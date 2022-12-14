@@ -86,77 +86,56 @@ fn part_two(input_file_path: &str) -> usize {
     let file = File::open(input_file_path).expect("file not found");
     let contents = BufReader::new(file);
 
-    let mut forest: Vec<Vec<u8>> = vec![];
+    let mut forest: Vec<u8> = vec![];
     let mut iter = contents.lines();
+    let mut width: usize = 1;
     while let Some(Ok(line)) = iter.next() {
-        let mut row = vec![];
+        width = line.len();
         for tree_char in line.chars() {
             let tree_height = tree_char.to_digit(10).unwrap();
-            row.push(tree_height as u8);
+            forest.push(tree_height as u8);
         }
-        forest.push(row);
     }
-    let (length, width) = (forest.len(), forest[0].len());
+    let length = forest.len() / width;
+    let total = forest.len();
 
-    let mut visibility: Vec<Vec<Vec<usize>>> = vec![
-        vec![
-            vec![0; 4];
-            width
-        ];
-        length
-    ];
+    let mut visibility: Vec<Vec<usize>> = vec![vec![0; 4]; length * width];
 
-    let mut compute = |outer_iter, inner_iter: Box<dyn Iterator<Item = usize>>, outer_is_x, direction: usize| {
-        let get_tree = |outer: usize, &inner: &usize| -> u8 {
-            if outer_is_x {
-                forest[outer][inner]
-            } else {
-                forest[inner][outer]
-            }
-        };
-
-        fn get_visible<'a>(
-            outer: usize,
-            &inner: &usize,
-            visibility: &'a mut Vec<Vec<Vec<usize>>>,
-            outer_is_x: &bool,
-        ) -> &'a mut Vec<usize> {
-            if *outer_is_x {
-                &mut visibility[outer][inner]
-            } else {
-                &mut visibility[inner][outer]
-            }
-        }
-
+    let mut compute =
+        |outer_iter, inner_iter: Box<dyn Iterator<Item = usize>>, direction: usize| {
             let _inner_iter: Vec<usize> = inner_iter.collect();
-        for outer in outer_iter {
-            let mut row_visiblity = vec![1; 10];
-            for inner in &_inner_iter {
-                let tree = get_tree(outer, inner) as usize;
-                let vis =  get_visible(outer, inner, &mut visibility, &outer_is_x);
-                vis[direction]= row_visiblity[tree];
-                //Update Visiblity
-                for (i, val) in row_visiblity.iter_mut().enumerate().rev() {
-                    if i > tree {
-                        *val += 1;
-                    } else {
-                        *val = 1;
+            for i in outer_iter {
+                let mut row_visiblity = vec![1; 10];
+                for j in &_inner_iter {
+                    let tree: usize = forest[i + j] as usize;
+                    visibility[(i + j) as usize][direction] = row_visiblity[tree];
+                    //Update Visiblity
+                    for (i, val) in row_visiblity.iter_mut().enumerate().rev() {
+                        if i > tree.into() {
+                            *val += 1;
+                        } else {
+                            *val = 1;
+                        }
                     }
                 }
             }
-        }
-    };
-    compute(0..length, Box::new(1..width), false,0);
-    compute(0..length, Box::new((0..width-1).rev()), false, 1);
-    compute(0..width, Box::new(1..length), true, 2);
-    compute(0..width, Box::new((0..length-1).rev()), true, 3);
-
-    visibility
-        .iter()
-        .fold(0, |acc: usize, row: &Vec<Vec<usize>>| {
-            acc.max(row.iter().fold(0, |acc, item| {
-                acc.max(item.iter().fold(1, |acc, val| acc * val))
-            }))
-        })
+        };
+    compute((0..total).step_by(width), Box::new(1..width), 2);
+    compute((0..total).step_by(width), Box::new((0..width - 1).rev()), 3);
+    compute(
+        (0..width).step_by(1),
+        Box::new((width..total).step_by(width)),
+        0,
+    );
+    compute(
+        (0..width).step_by(1),
+        Box::new((0..total - width).step_by(width).rev()),
+        1,
+    );
+    visibility.iter().fold(0, |acc: usize, item| {
+        acc.max(
+            item.iter()
+                .fold(1, |vis_acc, visibility| vis_acc * visibility),
+        )
+    })
 }
-
