@@ -98,91 +98,65 @@ fn part_two(input_file_path: &str) -> usize {
     }
     let (length, width) = (forest.len(), forest[0].len());
 
-    #[derive(Clone, Debug)]
-    struct Visibility {
-        up: usize,
-        down: usize,
-        left: usize,
-        right: usize,
-    }
-    let mut visibility: Vec<Vec<Visibility>> = vec![
+    let mut visibility: Vec<Vec<Vec<usize>>> = vec![
         vec![
-            Visibility {
-                up: 0,
-                down: 0,
-                left: 0,
-                right: 0
-            };
+            vec![0; 4];
             width
         ];
         length
     ];
 
-    //Horizontal
-    for y in 0..length {
-        let mut row_visiblity = vec![1; 10];
-        for x in 1..width {
-            let tree = forest[y][x] as usize;
-            visibility[y][x].right = row_visiblity[tree];
-            //Update Visiblity
-            for (i, val) in row_visiblity.iter_mut().enumerate().rev() {
-                if i > tree {
-                    *val += 1;
-                } else {
-                    *val = 1;
-                }
+    let mut compute = |outer_iter, inner_iter: Box<dyn Iterator<Item = usize>>, outer_is_x, direction: usize| {
+        let get_tree = |outer: usize, &inner: &usize| -> u8 {
+            if outer_is_x {
+                forest[outer][inner]
+            } else {
+                forest[inner][outer]
             }
-        }
-        let mut row_visiblity = vec![1; 10];
-        for x in (0..width - 1).rev() {
-            let tree = forest[y][x] as usize;
-            visibility[y][x].left = row_visiblity[tree];
-            //Update Visiblity
-            for (i, val) in row_visiblity.iter_mut().enumerate().rev() {
-                if i > tree {
-                    *val += 1;
-                } else {
-                    *val = 1;
-                }
-            }
-        }
-    }
+        };
 
-    //Vertical
-    for x in 0..width {
-        let mut row_visiblity = vec![1; 10];
-        for y in 1..length{
-            let tree = forest[y][x] as usize;
-            visibility[y][x].up = row_visiblity[tree];
-            //Update Visiblity
-            for (i, val) in row_visiblity.iter_mut().enumerate().rev() {
-                if i > tree {
-                    *val += 1;
-                } else {
-                    *val = 1;
-                }
+        fn get_visible<'a>(
+            outer: usize,
+            &inner: &usize,
+            visibility: &'a mut Vec<Vec<Vec<usize>>>,
+            outer_is_x: &bool,
+        ) -> &'a mut Vec<usize> {
+            if *outer_is_x {
+                &mut visibility[outer][inner]
+            } else {
+                &mut visibility[inner][outer]
             }
         }
-        let mut row_visiblity = vec![1; 10];
-        for y in (0..length - 1).rev() {
-            let tree = forest[y][x] as usize;
-            visibility[y][x].down = row_visiblity[tree];
-            //Update Visiblity
-            for (i, val) in row_visiblity.iter_mut().enumerate().rev() {
-                if i > tree {
-                    *val += 1;
-                } else {
-                    *val = 1;
-                }
-            }
-        }
-    }
 
-    visibility.iter().fold(0, |acc: usize, row: &Vec<Visibility>| {
-        acc.max(row.iter().fold(0, |acc, item| {
-           acc.max(item.up * item.down * item.left * item.right)
-        }))
-    })
-    
+            let _inner_iter: Vec<usize> = inner_iter.collect();
+        for outer in outer_iter {
+            let mut row_visiblity = vec![1; 10];
+            for inner in &_inner_iter {
+                let tree = get_tree(outer, inner) as usize;
+                let vis =  get_visible(outer, inner, &mut visibility, &outer_is_x);
+                vis[direction]= row_visiblity[tree];
+                //Update Visiblity
+                for (i, val) in row_visiblity.iter_mut().enumerate().rev() {
+                    if i > tree {
+                        *val += 1;
+                    } else {
+                        *val = 1;
+                    }
+                }
+            }
+        }
+    };
+    compute(0..length, Box::new(1..width), false,0);
+    compute(0..length, Box::new((0..width-1).rev()), false, 1);
+    compute(0..width, Box::new(1..length), true, 2);
+    compute(0..width, Box::new((0..length-1).rev()), true, 3);
+
+    visibility
+        .iter()
+        .fold(0, |acc: usize, row: &Vec<Vec<usize>>| {
+            acc.max(row.iter().fold(0, |acc, item| {
+                acc.max(item.iter().fold(1, |acc, val| acc * val))
+            }))
+        })
 }
 
